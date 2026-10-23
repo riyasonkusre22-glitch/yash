@@ -174,7 +174,7 @@ export default function Contact() {
                     Main Branch Address
                   </h4>
                   <p style={{ fontSize: '0.9rem', color: 'var(--slate-600)', lineHeight: 1.5 }}>
-                    Plot No. 42, Near Central Park, Main Road, City Center - 400001
+                    near holy cross ,premier road ,kurla(W),mumbai 400070 
                   </p>
                 </div>
               </div>
