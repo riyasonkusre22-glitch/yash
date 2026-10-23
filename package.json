@@ -1,0 +1,23 @@
+{
+  "name": "yash-tutorials",
+  "version": "1.0.0",
+  "description": "Yash Tutorials - Premier Educational Coaching Website",
+  "scripts": {
+    "server": "cd server && node server.js",
+    "client": "cd client && npm run dev",
+    "seed": "cd server && npm run seed",
+    "create-admin": "cd server && npm run create-admin",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install-all": "cd server && npm install && cd ../client && npm install"
+  },
+  "keywords": [
+    "education",
+    "coaching",
+    "tutorials"
+  ],
+  "author": "Yash Tutorials",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  }
+}
