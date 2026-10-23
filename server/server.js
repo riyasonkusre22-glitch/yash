@@ -40,10 +40,8 @@ const QuizAttempt = require('./models/QuizAttempt');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Trust reverse proxy in production (Render, Heroku, Nginx)
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
-}
+// Trust reverse proxy unconditionally (essential for Render, Cloudflare, Heroku)
+app.set('trust proxy', 1);
 
 // Connect to MongoDB
 connectDB();

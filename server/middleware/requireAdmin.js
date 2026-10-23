@@ -1,20 +1,43 @@
 const Admin = require('../models/Admin');
+const { verifyToken } = require('../config/token');
 
 /**
  * Authentication Middleware:
- * Verifies that the request has an active, valid administrator session.
- * Protects every /api/admin/* route independently of frontend routing.
+ * Supports both HTTP-only Session Cookie AND Authorization Bearer Token.
+ * This guarantees seamless authentication across cross-origin deployments (like Render Static Site + Render Web Service).
  */
 const requireAdmin = async (req, res, next) => {
   try {
-    if (!req.session || !req.session.adminId) {
+    let adminId = req.session ? req.session.adminId : null;
+
+    // Check Authorization header fallback
+    const authHeader = req.headers.authorization;
+    if (!adminId && authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const verified = verifyToken(token);
+      if (verified && verified.id) {
+        adminId = verified.id;
+        req.tokenVerified = true;
+      }
+    }
+
+    // Check custom x-admin-token header fallback
+    if (!adminId && req.headers['x-admin-token']) {
+      const verified = verifyToken(req.headers['x-admin-token']);
+      if (verified && verified.id) {
+        adminId = verified.id;
+        req.tokenVerified = true;
+      }
+    }
+
+    if (!adminId) {
       return res.status(401).json({
         success: false,
         message: 'Authentication required. Please log in to access admin resources.'
       });
     }
 
-    const admin = await Admin.findById(req.session.adminId).select('-password');
+    const admin = await Admin.findById(adminId).select('-password');
     if (!admin || !admin.isActive) {
       if (req.session) {
         req.session.destroy(() => {});
@@ -36,8 +59,9 @@ const requireAdmin = async (req, res, next) => {
 };
 
 /**
- * CSRF Protection Middleware for Session-Authenticated State-Changing Requests:
- * Validates the X-CSRF-Token header on POST, PUT, PATCH, and DELETE requests.
+ * CSRF Protection Middleware:
+ * Validates CSRF token for cookie-based requests.
+ * Requests carrying an Authorization Bearer token are inherently immune to CSRF.
  */
 const requireCsrf = (req, res, next) => {
   const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
@@ -45,8 +69,13 @@ const requireCsrf = (req, res, next) => {
     return next();
   }
 
-  // Exempt auth login because the session/token is generated during login
+  // Exempt auth login
   if (req.path === '/login') {
+    return next();
+  }
+
+  // Token-authenticated requests are inherently CSRF-safe
+  if (req.tokenVerified || (req.headers.authorization && req.headers.authorization.startsWith('Bearer '))) {
     return next();
   }
 

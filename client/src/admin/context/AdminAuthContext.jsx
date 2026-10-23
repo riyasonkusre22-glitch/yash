@@ -4,6 +4,12 @@ import axios from 'axios';
 // Ensure cookies are always sent with credentials across all requests
 axios.defaults.withCredentials = true;
 
+// Restore token from localStorage on initial script execution
+const savedToken = typeof window !== 'undefined' ? localStorage.getItem('yt_admin_token') : null;
+if (savedToken) {
+  axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+}
+
 const AdminAuthContext = createContext(null);
 
 export function AdminAuthProvider({ children }) {
@@ -23,6 +29,16 @@ export function AdminAuthProvider({ children }) {
     }
   }, []);
 
+  const applyAuthToken = useCallback((token) => {
+    if (token) {
+      localStorage.setItem('yt_admin_token', token);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      localStorage.removeItem('yt_admin_token');
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  }, []);
+
   // Verify active session with the backend
   const checkAuth = useCallback(async () => {
     try {
@@ -38,15 +54,17 @@ export function AdminAuthProvider({ children }) {
         setAdmin(null);
         setIsAuthenticated(false);
         applyCsrfToken('');
+        applyAuthToken('');
       }
     } catch (error) {
       setAdmin(null);
       setIsAuthenticated(false);
       applyCsrfToken('');
+      applyAuthToken('');
     } finally {
       setIsLoading(false);
     }
-  }, [applyCsrfToken]);
+  }, [applyCsrfToken, applyAuthToken]);
 
   useEffect(() => {
     checkAuth();
@@ -59,6 +77,7 @@ export function AdminAuthProvider({ children }) {
           setAdmin(null);
           setIsAuthenticated(false);
           applyCsrfToken('');
+          applyAuthToken('');
         }
         return Promise.reject(error);
       }
@@ -67,7 +86,7 @@ export function AdminAuthProvider({ children }) {
     return () => {
       axios.interceptors.response.eject(interceptor);
     };
-  }, [checkAuth, applyCsrfToken]);
+  }, [checkAuth, applyCsrfToken, applyAuthToken]);
 
   // Sign in action
   const login = async (email, password) => {
@@ -75,6 +94,9 @@ export function AdminAuthProvider({ children }) {
     if (res.data?.success && res.data?.admin) {
       setAdmin(res.data.admin);
       setIsAuthenticated(true);
+      if (res.data.token) {
+        applyAuthToken(res.data.token);
+      }
       if (res.data.csrfToken) {
         applyCsrfToken(res.data.csrfToken);
       }
@@ -93,6 +115,7 @@ export function AdminAuthProvider({ children }) {
       setAdmin(null);
       setIsAuthenticated(false);
       applyCsrfToken('');
+      applyAuthToken('');
     }
   };
 

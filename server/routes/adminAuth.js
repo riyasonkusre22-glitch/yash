@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const Admin = require('../models/Admin');
+const { signToken } = require('../config/token');
 const { requireAdmin } = require('../middleware/requireAdmin');
 const loginRateLimiter = require('../middleware/loginRateLimiter');
 
@@ -47,9 +48,12 @@ router.post('/login', loginRateLimiter, async (req, res, next) => {
       admin.lastLogin = new Date();
       admin.save().catch(() => {});
 
+      const token = signToken({ id: admin._id, email: admin.email });
+
       return res.status(200).json({
         success: true,
         message: 'Authentication successful',
+        token,
         admin: {
           id: admin._id,
           email: admin.email,
