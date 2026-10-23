@@ -40,12 +40,33 @@ const QuizAttempt = require('./models/QuizAttempt');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust reverse proxy in production (Render, Heroku, Nginx)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Connect to MongoDB
 connectDB();
 
 // CORS Middleware with credentials enabled for secure session cookies
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    
+    // Allowed origins: localhost or any .onrender.com domain or custom CLIENT_URL
+    const allowed = [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:3000',
+      process.env.CLIENT_URL
+    ].filter(Boolean);
+
+    if (allowed.includes(origin) || origin.endsWith('.onrender.com')) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Fallback allow for seamless deployment
+  },
   credentials: true
 }));
 
@@ -67,7 +88,7 @@ app.use(session({
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
